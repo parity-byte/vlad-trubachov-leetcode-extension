@@ -1,0 +1,26 @@
+{
+  "manifest_version": 3,
+  "name": "Vlad's LeetCode Solutions",
+  "version": "1.0",
+  "description": "Instantly find votrubac's solutions on any LeetCode problem",
+  "permissions": [],
+  "host_permissions": [],
+  "content_scripts": [
+    {
+      "matches": ["https://leetcode.com/problems/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["solutions.json"],
+      "matches": ["https://leetcode.com/*"]
+    }
+  ]
+}
