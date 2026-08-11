@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Vlad's LeetCode Solutions",
-  "version": "1.0",
-  "description": "Instantly find votrubac's solutions on any LeetCode problem",
-  "permissions": [],
-  "host_permissions": [],
+  "short_name": "votrubac",
+  "version": "1.1",
+  "description": "Instantly surface votrubac's (Vlad Trubachov) top-rated solutions on any LeetCode problem — 1800+ problems covered, zero sign-in required.",
+  "homepage_url": "https://leetcode.com/u/votrubac/",
   "content_scripts": [
     {
       "matches": ["https://leetcode.com/problems/*"],
