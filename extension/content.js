@@ -2,57 +2,44 @@
   if (window.vladExtensionLoaded) return;
   window.vladExtensionLoaded = true;
 
-  let solutions = null;
+  let dbs = {};
   let lastUrl = location.href;
-  let pillInjected = false;
+
+  // Authors ordered left to right (lee215 first, then votrubac)
+  const AUTHORS = [
+    {
+      id: "lee-pill",
+      key: "lee",
+      file: "lee-solutions.json",
+      label: "🧠 lee215",
+      foundTitle: "Open lee215's solution",
+      missingTitle: "lee215 hasn't posted a solution for this problem",
+    },
+    {
+      id: "vlad-pill",
+      key: "vlad",
+      file: "solutions.json",
+      label: "🧠 Vlad",
+      foundTitle: "Open votrubac's solution",
+      missingTitle: "votrubac hasn't posted a solution for this problem",
+    },
+  ];
 
   function slug() {
     const m = location.pathname.match(/\/problems\/([^/]+)/);
     return m ? m[1] : null;
   }
 
-  async function getSolutions() {
-    if (!solutions) {
-      solutions = await fetch(chrome.runtime.getURL("solutions.json")).then(r => r.json());
+  async function getDb(author) {
+    if (!dbs[author.key]) {
+      dbs[author.key] = await fetch(chrome.runtime.getURL(author.file)).then(r => r.json());
     }
-    return solutions;
+    return dbs[author.key];
   }
 
-  // Try to inject a pill into LeetCode's Solutions filter bar.
-  // The filter bar contains pills like "All", "My Solution", "Python3", etc.
-  // We find the pill container and prepend a "🧠 Vlad" pill.
-  async function tryInjectPill() {
-    const currentSlug = slug();
-    if (!currentSlug) return;
-
-    const db = await getSolutions();
-    const solution = db[currentSlug];
-
-    // Remove any existing Vlad pill first (page might re-render)
-    document.getElementById("vlad-pill")?.remove();
-
-    // Find the filter pill row — it holds the "All" pill span
-    // Selector: a span with text "All" inside the Solutions panel
-    const allPills = [...document.querySelectorAll("span")].filter(
-      el => el.textContent.trim() === "All" && el.closest('[class*="rounded-full"]')
-    );
-    
-    const allPill = allPills[0];
-    const flexContainer = allPill?.parentElement;
-
-    if (!flexContainer) return false;
-
-    // Check if pill is already injected and in the correct place
-    const existingPill = document.getElementById("vlad-pill");
-    if (existingPill && existingPill.parentElement === flexContainer) {
-      return true;
-    }
-    existingPill?.remove(); // Remove if it's orphaned or in the wrong place
-
+  function makePill(author, solution) {
     const pill = document.createElement(solution ? "a" : "span");
-    pill.id = "vlad-pill";
-
-    // Match LeetCode's own pill styles
+    pill.id = author.id;
     pill.className = [
       "inline-flex", "items-center", "gap-1.5",
       "whitespace-nowrap", "rounded-full", "px-3", "py-[6px]",
@@ -63,15 +50,12 @@
 
     if (solution) {
       pill.href = solution.url;
-      pill.title = "Open votrubac's solution";
-      pill.innerHTML = `🧠 Vlad`;
-
-      // Navigate within LeetCode's SPA (no new tab)
+      pill.title = author.foundTitle;
+      pill.innerHTML = author.label;
       pill.addEventListener("click", (e) => {
         e.preventDefault();
         history.pushState({}, "", solution.url.replace("https://leetcode.com", ""));
         window.dispatchEvent(new PopStateEvent("popstate"));
-        // Fallback: navigate directly if SPA doesn't handle it
         setTimeout(() => {
           if (!document.querySelector('[class*="solution-detail"]') &&
               !document.querySelector('[data-track-load="solution_detail"]')) {
@@ -80,26 +64,59 @@
         }, 800);
       });
     } else {
-      pill.title = "votrubac hasn't posted a solution for this problem";
-      pill.innerHTML = `❌ Vlad`;
+      pill.title = author.missingTitle;
+      pill.innerHTML = `❌ ${author.label.split(" ").pop()}`;
     }
+    return pill;
+  }
+
+  async function tryInjectPills() {
+    const currentSlug = slug();
+    if (!currentSlug) return false;
+
+    // Find the filter pill row
+    const allPill = [...document.querySelectorAll("span")].find(
+      el => el.textContent.trim() === "All" && el.closest('[class*="rounded-full"]')
+    );
+    const flexContainer = allPill?.parentElement;
+    if (!flexContainer) return false;
+
+    // Check if pills are already in THIS container (not in a stale/detached one)
+    // Use a data attribute on the container itself as a cheap marker
+    if (flexContainer.dataset.vladInjected === "1") return true;
+
+    // Remove any stale pills from anywhere in the document
+    AUTHORS.forEach(a => document.getElementById(a.id)?.remove());
+    flexContainer.dataset.vladInjected = "1";
+
+    // Load all DBs in parallel
+    const [leeSolutions, vladSolutions] = await Promise.all(AUTHORS.map(a => getDb(a)));
+    const dbMap = { lee: leeSolutions, vlad: vladSolutions };
 
     // Insert after "My Solution" if it exists, otherwise after "All"
-    const mySolutionPill = [...flexContainer.children].find(el => el.textContent.trim() === "My Solution");
-    const insertAfterNode = mySolutionPill || allPill;
-    insertAfterNode.after(pill);
+    const mySolutionPill = [...flexContainer.children].find(
+      el => el.textContent.trim() === "My Solution"
+    );
+    let insertAfter = mySolutionPill || allPill;
+
+    // Insert in order: lee215, then Vlad (lee goes first = closer to "All")
+    for (const author of AUTHORS) {
+      const solution = dbMap[author.key][currentSlug];
+      const pill = makePill(author, solution);
+      insertAfter.after(pill);
+      insertAfter = pill; // next pill goes after this one
+    }
 
     return true;
   }
 
-  // Poll for the Solutions panel to appear (it's lazy-rendered by LeetCode)
-  async function waitAndInject() {
-    pillInjected = false;
+  // Poll until the Solutions panel appears (lazy-rendered by LeetCode)
+  function waitAndInject() {
     let attempts = 0;
     const timer = setInterval(async () => {
       attempts++;
-      const ok = await tryInjectPill();
-      if (ok || attempts > 20) clearInterval(timer); // give up after 10s
+      const ok = await tryInjectPills();
+      if (ok || attempts > 20) clearInterval(timer);
     }, 500);
   }
 
@@ -109,9 +126,7 @@
       lastUrl = location.href;
       waitAndInject();
     } else if (slug()) {
-      // Re-check if Solutions panel is visible but pill is missing
-      // (e.g. user clicked Description tab, then back to Solutions tab)
-      tryInjectPill();
+      tryInjectPills();
     }
   }, 500);
 

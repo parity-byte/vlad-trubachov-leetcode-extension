@@ -1,18 +1,28 @@
 // ============================================================
-// RUN THIS ON: https://leetcode.com/u/votrubac/
-// Make sure the "Solutions" tab is selected first!
-// Clicks "Show More" until all solutions load, then downloads JSON.
+// UNIVERSAL LeetCode author solution scraper
+// 
+// Usage:
+//   1. Go to https://leetcode.com/u/<username>/
+//   2. Click the "Solutions" tab
+//   3. Paste this entire script in the browser console
+//   4. It clicks "Show More" until all solutions load, then downloads JSON
+//
+// Change USERNAME and FILENAME below to target any author.
+// ============================================================
+
+const USERNAME = "votrubac";       // ← change this to scrape a different author
+const FILENAME  = "vlad-solutions.json"; // ← change this for the output filename
+
 // ============================================================
 
 (async () => {
   const CLICK_DELAY = 1000;
   let clicks = 0;
 
-  console.log("🚀 Starting Vlad solution scraper...");
+  console.log(`🚀 Starting scraper for: ${USERNAME}`);
   console.log("🔄 Clicking 'Show More' to load all solutions...");
 
   while (true) {
-    // Find the "Show More" button
     const buttons = [...document.querySelectorAll("div")].filter(
       (d) => d.textContent.trim() === "Show More" && d.classList.contains("cursor-pointer")
     );
@@ -30,7 +40,7 @@
     await new Promise((r) => setTimeout(r, CLICK_DELAY));
   }
 
-  // Extract all solution data
+  // Extract all solution links
   const links = document.querySelectorAll('a[href*="/problems/"][href*="/solutions/"]');
   const solutions = {};
 
@@ -41,10 +51,9 @@
       const problemSlug = match[1];
       const titleSpan = a.querySelector("span.font-medium");
       const title = titleSpan ? titleSpan.textContent.trim() : "";
-
       if (!solutions[problemSlug]) {
         solutions[problemSlug] = {
-          title: title,
+          title,
           url: "https://leetcode.com" + href,
         };
       }
@@ -54,14 +63,13 @@
   const count = Object.keys(solutions).length;
   console.log(`\n✅ Done! Found ${count} unique problem solutions (${clicks} clicks).`);
 
-  // Download as JSON file
   const blob = new Blob([JSON.stringify(solutions, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
   const dl = document.createElement("a");
   dl.href = url;
-  dl.download = "vlad-solutions.json";
+  dl.download = FILENAME;
   dl.click();
   URL.revokeObjectURL(url);
 
-  console.log("📥 Downloaded vlad-solutions.json!");
+  console.log(`📥 Downloaded ${FILENAME}!`);
 })();

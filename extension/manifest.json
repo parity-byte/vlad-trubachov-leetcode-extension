@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Vlad's LeetCode Solutions",
-  "short_name": "votrubac",
-  "version": "1.1",
-  "description": "Instantly surface votrubac's (Vlad Trubachov) top-rated solutions on any LeetCode problem — 1800+ problems covered, zero sign-in required.",
+  "name": "Best LeetCode Explanations",
+  "short_name": "LC Explanations",
+  "version": "1.2",
+  "description": "Instantly find lee215 and votrubac's best-explained LeetCode solutions. Two pills in the Solutions filter bar — 3000+ problems covered, zero sign-in.",
   "homepage_url": "https://leetcode.com/u/votrubac/",
   "content_scripts": [
     {
@@ -19,7 +19,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["solutions.json"],
+      "resources": ["solutions.json", "lee-solutions.json"],
       "matches": ["https://leetcode.com/*"]
     }
   ]
